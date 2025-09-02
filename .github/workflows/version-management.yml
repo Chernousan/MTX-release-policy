@@ -1,0 +1,70 @@
+name: Update Version on Tag
+
+on:
+  push:
+    tags:
+      - '*'  # Triggers on any tag push
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for all tags and branches
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    
+    - name: Extract tag name
+      id: extract_tag
+      run: |
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+        echo "Extracted tag: $TAG_NAME"
+    
+    - name: Update version in settings.py
+      run: |
+        TAG_NAME="${{ steps.extract_tag.outputs.tag_name }}"
+        
+        # Check if settings.py exists
+        if [ ! -f "settings.py" ]; then
+          echo "settings.py not found!"
+          exit 1
+        fi
+        
+        # Update version variable in settings.py
+        # This handles various formats like version = "1.0.0", version='1.0.0', version = '1.0.0'
+        sed -i "s/^VERSION\s*=\s*['\"][^'\"]*['\"]$/VERSION = \"$TAG_NAME\"/" settings.py
+        
+        # Verify the change was made
+        echo "Updated settings.py content:"
+        cat settings.py
+    
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+    
+    - name: Switch to main branch
+      run: |
+        git checkout main
+        git pull origin main
+    
+    - name: Commit and push changes
+      run: |
+        # Add the modified file
+        git add settings.py
+        
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Update version to ${{ steps.extract_tag.outputs.tag_name }}"
+          git push origin main
+        fi
