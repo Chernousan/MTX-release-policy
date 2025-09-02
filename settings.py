@@ -9,4 +9,4 @@ RELEASE - alpha, beta, rc or release
 BUILD - build number
 """
 
-VERSION = "v.1.0.0"
+VERSION = "v.1.1.0"
